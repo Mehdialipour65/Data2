@@ -108,3 +108,4 @@ features_one_hot.head()
 # HINT: use astype function
 features_one_hot = features_one_hot.astype('float64')
 features_one_hot.head()
+features_one_hot.to_csv('dataset_part_3.csv', index=False)
