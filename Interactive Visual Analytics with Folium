@@ -1,0 +1,335 @@
+import piplite
+await piplite.install(['folium'])
+await piplite.install(['pandas'])
+import piplite
+await piplite.install(['folium'])
+await piplite.install(['pandas'])
+# Import folium MarkerCluster plugin
+from folium.plugins import MarkerCluster
+# Import folium MousePosition plugin
+from folium.plugins import MousePosition
+# Import folium DivIcon plugin
+from folium.features import DivIcon
+# Download and read the `spacex_launch_geo.csv`
+from js import fetch
+import io
+
+URL = 'https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/spacex_launch_geo.csv'
+resp = await fetch(URL)
+spacex_csv_file = io.BytesIO((await resp.arrayBuffer()).to_py())
+spacex_df=pd.read_csv(spacex_csv_file)
+# Select relevant sub-columns: `Launch Site`, `Lat(Latitude)`, `Long(Longitude)`, `class`
+spacex_df = spacex_df[['Launch Site', 'Lat', 'Long', 'class']]
+launch_sites_df = spacex_df.groupby(['Launch Site'], as_index=False).first()
+launch_sites_df = launch_sites_df[['Launch Site', 'Lat', 'Long']]
+launch_sites_df
+# Start location is NASA Johnson Space Center
+nasa_coordinate = [29.559684888503615, -95.0830971930759]
+site_map = folium.Map(location=nasa_coordinate, zoom_start=10)
+# Create a blue circle at NASA Johnson Space Center's coordinate with a popup label showing its name
+circle = folium.Circle(nasa_coordinate, radius=1000, color='#d35400', fill=True).add_child(folium.Popup('NASA Johnson Space Center'))
+# Create a blue circle at NASA Johnson Space Center's coordinate with a icon showing its name
+marker = folium.map.Marker(
+    nasa_coordinate,
+    # Create an icon as a text label
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % 'NASA JSC',
+        )
+    )
+site_map.add_child(circle)
+site_map.add_child(marker)
+# Initial the map
+site_map = folium.Map(location=nasa_coordinate, zoom_start=5)
+# For each launch site, add a Circle object based on its coordinate (Lat, Long) values. In addition, add Launch site name as a popup label
+# Loop through each launch site
+for index, row in launch_sites_df.iterrows():
+    site_name = row['Launch Site']
+    site_lat = row['Lat']
+    site_lon = row['Long']
+    coordinate = [site_lat, site_lon]
+    # Add Circle
+    circle = folium.Circle(
+        location=coordinate,
+        radius=1000,
+        color='#0000FF',
+        fill=True
+    ).add_child(folium.Popup(site_name))
+    # Add Marker with DivIcon
+    marker = folium.map.Marker(
+        location=coordinate,
+        icon=DivIcon(
+            icon_size=(20,20),
+            icon_anchor=(0,0),
+            html='<div style="font-size: 12; color:#0000FF;"><b>%s</b></div>' % site_name
+        )
+    )
+    
+    # Add Circle and Marker to map
+    site_map.add_child(circle)
+    site_map.add_child(marker)
+
+# Display map
+site_map
+# Task 2: Mark the success/failed launches for each site on the map
+# Add success/failure markers for each launch
+marker_cluster = MarkerCluster().add_to(site_map)
+
+for index, row in spacex_df.iterrows():
+    coordinate = [row['Lat'], row['Long']]
+    launch_class = row['class']
+    # Set color based on success (1) or failure (0)
+    if launch_class == 1:
+        color = 'green'
+    else:
+        color = 'red'
+    folium.CircleMarker(
+        location=coordinate,
+        radius=6,
+        color=color,
+        fill=True,
+        fill_opacity=0.7,
+        popup=f"Launch Site: {row['Launch Site']}, Class: {launch_class}"
+    ).add_to(marker_cluster)
+site_map
+marker_cluster = MarkerCluster()
+# Create a new column 'marker_color' based on class value
+# green for success, red for failure
+
+# Apply a function to check the value of `class` column
+# If class=1, marker_color value will be green
+# If class=0, marker_color value will be red
+spacex_df['marker_color'] = spacex_df['class'].apply(lambda x: 'green' if x == 1 else 'red')
+
+# Add a Marker for each launch record
+for index, row in spacex_df.iterrows():
+    # Create Marker
+    marker = folium.Marker(
+        location=[row['Lat'], row['Long']],
+        icon=folium.Icon(color='white', icon_color=row['marker_color']),
+        popup=f"Launch Site: {row['Launch Site']}, Class: {row['class']}"
+    )
+    # Add Marker to marker_cluster
+    marker_cluster.add_child(marker)
+
+# Add marker_cluster to site_map
+site_map.add_child(marker_cluster)
+
+# Display the map
+site_map
+# Add marker_cluster to current site_map
+site_map.add_child(marker_cluster)
+# for each row in spacex_df data frame
+# create a Marker object with its coordinate
+# and customize the Marker's icon property to indicate if this launch was successed or failed, 
+# e.g., icon=folium.Icon(color='white', icon_color=row['marker_color']
+    # TODO: Create and add a Marker cluster to the site map
+    # marker = folium.Marker(...)
+# 2️⃣ Create a new column 'marker_color' based on class value
+spacex_df['marker_color'] = spacex_df['class'].apply(lambda x: 'green' if x == 1 else 'red')
+# 3️⃣ Loop through each launch record and add Marker to marker_cluster
+for index, row in spacex_df.iterrows():
+    marker = folium.Marker(
+        location=[row['Lat'], row['Long']],
+        icon=folium.Icon(color='white', icon_color=row['marker_color']),
+        popup=f"Launch Site: {row['Launch Site']}, Class: {row['class']}"
+    )
+    # Add marker to marker_cluster
+    marker_cluster.add_child(marker)
+# 4️⃣ Add the marker_cluster to the map
+site_map.add_child(marker_cluster)
+# 5️⃣ Display the map
+site_map
+# TASK 3: Calculate the distances between a launch site to its proximities
+import numpy as np
+
+# Haversine function to calculate distance in km
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371  # Earth radius in km
+    phi1 = np.radians(lat1)
+    phi2 = np.radians(lat2)
+    dphi = np.radians(lat2 - lat1)
+    dlambda = np.radians(lon2 - lon1)
+    
+    a = np.sin(dphi/2)**2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlambda/2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+    
+    return R * c
+
+# Example: calculate distance from NASA JSC to each launch site
+nasa_jsc_coord = (29.559684888503615, -95.0830971930759)
+
+launch_sites_df['Distance_from_NASA_JSC_km'] = launch_sites_df.apply(
+    lambda row: haversine(nasa_jsc_coord[0], nasa_jsc_coord[1], row['Lat'], row['Long']),
+    axis=1
+)
+
+launch_sites_df
+# Add Mouse Position to get the coordinate (Lat, Long) for a mouse over on the map
+formatter = "function(num) {return L.Util.formatNum(num, 5);};"
+mouse_position = MousePosition(
+    position='topright',
+    separator=' Long: ',
+    empty_string='NaN',
+    lng_first=False,
+    num_digits=20,
+    prefix='Lat:',
+    lat_formatter=formatter,
+    lng_formatter=formatter,
+)
+
+site_map.add_child(mouse_position)
+site_map
+from math import sin, cos, sqrt, atan2, radians
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    # approximate radius of earth in km
+    R = 6373.0
+
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+    lat2 = radians(lat2)
+    lon2 = radians(lon2)
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    distance = R * c
+    return distance
+from math import sin, cos, sqrt, atan2, radians
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    # approximate radius of earth in km
+    R = 6373.0
+
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+    lat2 = radians(lat2)
+    lon2 = radians(lon2)
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    distance = R * c
+    return distance
+# find coordinate of the closet coastline
+# e.g.,: Lat: 28.56367  Lon: -80.57163
+# distance_coastline = calculate_distance(launch_site_lat, launch_site_lon, coastline_lat, coastline_lon)
+# Create and add a folium.Marker on your selected closest coastline point on the map
+# Display the distance between coastline point and launch site using the icon property 
+# for example
+# distance_marker = folium.Marker(
+#    coordinate,
+#    icon=DivIcon(
+#        icon_size=(20,20),
+#        icon_anchor=(0,0),
+#        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % "{:10.2f} KM".format(distance),
+#        )
+#    )
+from folium.features import DivIcon
+from math import sin, cos, sqrt, atan2, radians
+
+# تابع محاسبه فاصله (Haversine)
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6373.0  # شعاع زمین به کیلومتر
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+    lat2 = radians(lat2)
+    lon2 = radians(lon2)
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    return distance
+
+# مثال: انتخاب نزدیک‌ترین ساحل به یک Launch Site
+launch_site_coord = [28.573255, -80.646895]  # نمونه: Kennedy Space Center
+coastline_coord = [28.56367, -80.57163]      # نقطه منتخب روی ساحل
+
+# محاسبه فاصله
+distance_coastline = calculate_distance(
+    launch_site_coord[0], launch_site_coord[1],
+    coastline_coord[0], coastline_coord[1]
+)
+
+# ایجاد Marker برای ساحل با فاصله
+distance_marker = folium.Marker(
+    location=coastline_coord,
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>{:10.2f} KM</b></div>'.format(distance_coastline)
+    )
+)
+
+# اضافه کردن Marker به نقشه
+site_map.add_child(distance_marker)
+
+# رسم PolyLine بین Launch Site و ساحل
+line = folium.PolyLine(
+    locations=[launch_site_coord, coastline_coord],
+    weight=2,
+    color='blue',
+    dash_array='5, 5'
+)
+site_map.add_child(line)
+
+site_map
+# Create a `folium.PolyLine` object using the coastline coordinates and launch site coordinate
+# lines=folium.PolyLine(locations=coordinates, weight=1)
+site_map.add_child(lines)
+# Create a marker with distance to a closest city, railway, highway, etc.
+# Draw a line between the marker to the launch site
+
+from folium.features import DivIcon
+import folium
+
+# نمونه Launch Site
+launch_site_coord = [28.573255, -80.646895]  # Kennedy Space Center
+
+# نقاط نزدیک (مثلاً شهر، راه‌آهن، بزرگراه)
+proximity_points = {
+    "City": [28.6084, -80.6043],
+    "Highway": [28.5615, -80.6480],
+    "Railway": [28.5700, -80.6500]
+}
+
+# رسم Marker و PolyLine برای هر نقطه نزدیک
+for label, coord in proximity_points.items():
+    # محاسبه فاصله با Haversine
+    distance_km = calculate_distance(
+        launch_site_coord[0], launch_site_coord[1],
+        coord[0], coord[1]
+    )
+    
+    # ایجاد Marker با فاصله
+    marker = folium.Marker(
+        location=coord,
+        icon=DivIcon(
+            icon_size=(20,20),
+            icon_anchor=(0,0),
+            html=f'<div style="font-size:12px; color:#d35400;"><b>{label}: {distance_km:.2f} KM</b></div>'
+        )
+    )
+    site_map.add_child(marker)
+    
+    # رسم PolyLine بین Launch Site و نقطه
+    line = folium.PolyLine(
+        locations=[launch_site_coord, coord],
+        weight=2,
+        color='green',
+        dash_array='5,5'
+    )
+    site_map.add_child(line)
+
+# نمایش نقشه
+site_map
+
