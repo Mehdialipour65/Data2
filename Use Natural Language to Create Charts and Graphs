@@ -1,0 +1,7 @@
+%%capture
+!pip install --user "ibm-watsonx-ai==0.2.6"
+!pip install --user "langchain==0.1.16" 
+!pip install --user "langchain-ibm==0.1.4"
+!pip install --user "langchain-experimental==0.0.57"
+!pip install --user "matplotlib==3.8.4"
+!pip install --user "seaborn==0.13.2"
